@@ -1,44 +1,40 @@
 #include <stdio.h>
 #include <cuda_runtime.h>
 
-// // CUDA Kernel function to add elements of two arrays
-// __global__ void vector_add(const float *A, const float *B, float *C, int numElements) {
-//     int i = blockDim.x * blockIdx.x + threadIdx.x;
-//     if (i < numElements) {
-//         C[i] = A[i] + B[i];
-//     }
-// }
 
-__global__ void TccCalcNonSparse(int8_t* ab, int8_t* wb, int32_t* partial_sum){
-    int matrx_idx = blockDim.x * blockIdx.x + threadIdx.x;
-    for (size_t m = 0; m != 32; ++m) {
-      for(size_t n = 0; n != 64; ++n){
-         partial_sum[matrx_idx * 2048 + m * 64 + n] = 0;
-      }  
-      // for (size_t k = 0; k != 32; ++k) {
-      //   int8_t tmp = ab[matrx_idx *1024 +m*32 +k];
-      //   for (size_t n = 0; n != 64; ++n) {
-      //     partial_sum[matrx_idx * 2048 + m * 64 + n] += tmp * wb[matrx_idx *2048 + k* 64 + n];
-      //   }
-      // }
+// A[32, 32]
+// B[32, 64]
+// SUM[32, 64]
+
+__global__ void LuTccNonSparse(int8_t* ab, int8_t* wb, int32_t* partial_sum){
+    int row = threadIdx.x;
+    int col = blockIdx.y * blockDim.y + threadIdx.y;
+    int abOffset = blockIdx.x * 32 * 32;
+    int wbOffset = blockIdx.x * 64 * 32;
+    int sumOffset = blockIdx.x * 32 * 64;
+    int32_t sum = 0;
+    for (size_t k = 0; k < 32; ++k) {
+      sum += ab[abOffset + row * 32 + k] * wb[wbOffset + k * 64 + col];
+    }
+    partial_sum[sumOffset + row * 64 + col] = sum;
+}
+
+__global__ void kernelExample() {
+    if (threadIdx.x == 0 && threadIdx.y == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
+        // 只在第一个线程块的第一个线程中打印
+        printf("Block size: %d x %d x %d\n", blockDim.x, blockDim.y, blockDim.z);
+        printf("Grid size: %d x %d x %d\n", gridDim.x, gridDim.y, gridDim.z);
     }
 }
 
-// __global__ void TccCalcNonSparse(int8_t* ab, int8_t* wb, int32_t* partial_sum){
-//     int matrx_idx = blockDim.x * blockIdx.x + threadIdx.x;
-//     for (size_t m = 0; m != 32; ++m) {
-//       for (size_t k = 0; k != 32; ++k) {
-//         int8_t tmp = ab[matrx_idx *1024 +m*32 +k];
-//         for (size_t n = 0; n != 64; ++n) {
-//           partial_sum[m][n] += tmp * wb[k][n];
-//         }
-//       }
-//     }
-// }
+__global__ void print_kernel() {
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    printf("Hello from thread %d!\n", tid);
+}
 
 
 int main(void) {
-    int batchSize = 16;
+    int batchSize = 972;
     int abElements = 1024 * batchSize;
     int wbElements = 2048 * batchSize;
     int sumElements = 2048 * batchSize;
@@ -50,8 +46,9 @@ int main(void) {
     h_ab = (int8_t *)malloc(abElements);
     h_wb = (int8_t *)malloc(wbElements);
     h_sum = (int32_t *)malloc(sumElements * sizeof(int32_t));
-
-
+    memset(h_ab, 0x1, abElements);
+    memset(h_wb, 0x1, wbElements);
+  
     // Allocate device memory
     cudaMalloc((void **)&d_ab, abElements);
     cudaMalloc((void **)&d_wb, wbElements);
@@ -66,17 +63,15 @@ int main(void) {
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
-    // 复制数据到设备等准备工作...
-
     // 记录核函数开始执行的时间
     cudaEventRecord(start, 0);
 
-    // Launch the Vector Add CUDA Kernel
-    int threadsPerBlock = 16;
-    int blocksPerGrid = 1;
-    TccCalcNonSparse<<<blocksPerGrid, threadsPerBlock>>>(d_ab, d_wb, d_sum);
+    dim3 blockSize(32, 32); // 每个线程块中的线程布局（32x32）
+    dim3 blocksPerGrid(972, 2);
+    LuTccNonSparse<<<blocksPerGrid, blockSize>>>(d_ab, d_wb, d_sum);
 
-        // 记录核函数结束执行的时间
+    // kernelExample<<<blocksPerGrid, blockSize>>>();
+    // print_kernel<<<1, 256>>>();
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop); // 等待事件完成
 
@@ -84,10 +79,14 @@ int main(void) {
     cudaEventElapsedTime(&milliseconds, start, stop);
     printf("TccCalcNonSparse execution time: %f milliseconds\n", milliseconds);
 
-
-    // Copy result back to host
     cudaMemcpy(h_sum, d_sum, sumElements * sizeof(int32_t), cudaMemcpyDeviceToHost);
 
+    for (size_t k = 0; k < sumElements; ++k) {
+      if(h_sum[k] != 32){
+        printf("Test Failed, h_sum[%ld]=%d\n", k, h_sum[k]);  
+        break;  
+      }
+    }
 
     printf("Test PASSED\n");
 

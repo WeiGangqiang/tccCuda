@@ -1,2 +1,2 @@
 #!/bin/bash
-nvcc matrxMul.cu -o matrxMul
+nvcc -O3 matrxMul.cu -o matrxMul
