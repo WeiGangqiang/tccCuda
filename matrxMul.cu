@@ -61,10 +61,29 @@ int main(void) {
     cudaMemcpy(d_ab, h_ab, abElements, cudaMemcpyHostToDevice);
     cudaMemcpy(d_wb, h_wb, wbElements, cudaMemcpyHostToDevice);
 
+    // 创建两个CUDA事件
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    // 复制数据到设备等准备工作...
+
+    // 记录核函数开始执行的时间
+    cudaEventRecord(start, 0);
+
     // Launch the Vector Add CUDA Kernel
     int threadsPerBlock = 16;
     int blocksPerGrid = 1;
     TccCalcNonSparse<<<blocksPerGrid, threadsPerBlock>>>(d_ab, d_wb, d_sum);
+
+        // 记录核函数结束执行的时间
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop); // 等待事件完成
+
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    printf("TccCalcNonSparse execution time: %f milliseconds\n", milliseconds);
+
 
     // Copy result back to host
     cudaMemcpy(h_sum, d_sum, sumElements * sizeof(int32_t), cudaMemcpyDeviceToHost);
