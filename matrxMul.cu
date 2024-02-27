@@ -15,12 +15,12 @@ __global__ void TccCalcNonSparse(int8_t* ab, int8_t* wb, int32_t* partial_sum){
       for(size_t n = 0; n != 64; ++n){
          partial_sum[matrx_idx * 2048 + m * 64 + n] = 0;
       }  
-      for (size_t k = 0; k != 32; ++k) {
-        int8_t tmp = ab[matrx_idx *1024 +m*32 +k];
-        for (size_t n = 0; n != 64; ++n) {
-          partial_sum[matrx_idx * 2048 + m * 64 + n] += tmp * wb[matrx_idx *2048 + k* 64 + n];
-        }
-      }
+      // for (size_t k = 0; k != 32; ++k) {
+      //   int8_t tmp = ab[matrx_idx *1024 +m*32 +k];
+      //   for (size_t n = 0; n != 64; ++n) {
+      //     partial_sum[matrx_idx * 2048 + m * 64 + n] += tmp * wb[matrx_idx *2048 + k* 64 + n];
+      //   }
+      // }
     }
 }
 
