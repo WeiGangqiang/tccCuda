@@ -13,6 +13,7 @@ __global__ void LuTccNonSparse(int8_t* ab, int8_t* wb, int32_t* partial_sum){
     int wbOffset = blockIdx.x * 64 * 32;
     int sumOffset = blockIdx.x * 32 * 64;
     int32_t sum = 0;
+    #pragma unroll
     for (size_t k = 0; k < 32; ++k) {
       sum += ab[abOffset + row * 32 + k] * wb[wbOffset + k * 64 + col];
     }
