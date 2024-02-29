@@ -2,3 +2,4 @@
 nvcc -arch=sm_80 -O3 matrxMul.cu -o matrxMul
 nvcc -arch=sm_80 -O3 mulVmma.cu -o mulVmma
 nvcc -arch=sm_80 -O3 vmmaNative.cu -o vmmaNative
+nvcc -arch=sm_80 -O3 cudaMemCpy.cu -o cudaMemCpy
