@@ -3,7 +3,7 @@
 #include <chrono>
 
 int main() {
-    const size_t dataSize = 1024 * 1024 * 256; // 例如，256MB
+    const size_t dataSize = 1024 * 972 * 8; // 例如，256MB
     char* hostData;
     char* deviceData;
 
