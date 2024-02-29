@@ -20,5 +20,4 @@ nvcc matrxMul.cu -o matrxMul
 ```
 
 - cyrus
-- 123456
 
